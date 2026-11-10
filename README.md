@@ -2,6 +2,54 @@
 
 On-screen keyboard, tablet mode, auto-rotation and Hyprland touch gestures.
 
+## Features
+
+### On-screen keyboard
+- [wvkbd](https://github.com/jjsullivan5196/wvkbd), themed from the shell: colors, font and corner radius follow the current theme and update when it changes.
+- Choose the wvkbd variant, portrait and landscape heights, and layers.
+- A hide button sits just above the keyboard.
+- Toggle it from the bar icon, the control center tile, a touch gesture or IPC.
+- Outside tablet mode it runs only while shown.
+
+### Tablet mode
+- Keeps the keyboard running in the background, so it opens instantly.
+- **Show on text focus:** the keyboard opens by itself when a text field is focused.
+- **Automatic tablet mode:** detaching the last external keyboard turns tablet mode on, and attaching one turns it off. Tablet mode you turned on yourself is never switched off.
+- Follows the hardware tablet-mode switch on convertibles (needs the `input` group).
+
+### Physical keyboards
+- Detects USB and Bluetooth keyboards. Built-in laptop keyboards never count as external.
+- Attaching a keyboard hides the on-screen keyboard.
+- Typing on an external keyboard hides it (needs the `input` group).
+- One toggle turns all of this off.
+
+### Auto-rotation
+- Rotates the screen from the accelerometer (iio-sensor-proxy).
+- Rotates the built-in display by default, or a display you choose.
+- Rotation lock in quick settings, the control center and IPC.
+- The rotation survives Hyprland config reloads.
+
+### Touch gestures (Hyprland)
+- Built on hyprgrass: edge swipes, multi-finger swipes, taps, pinches and long presses.
+- Gesture editor. Each gesture runs one of: next or previous workspace, close, fullscreen, float, drag window, toggle keyboard, control center, launcher, notifications, or a custom command.
+- Defaults:
+  - swipe in from the right or left edge: next or previous workspace
+  - swipe up from the bottom edge: keyboard
+  - swipe down from the top edge: control center
+  - 3-finger swipe down: close the window
+  - 3-finger long press: drag the window
+- Tunables: sensitivity, long press delay, edge size, held touches, and Hyprland's touchscreen workspace swipe.
+- One-click hyprgrass install and a one-click config hookup.
+
+### Controls
+- **Bar icon:** shows tablet or laptop mode and lights up while the keyboard is shown. Tap toggles the keyboard; long-press or right-click opens quick settings.
+- **Quick settings:** keyboard, tablet mode, automatic tablet mode, show on text focus, physical keyboard detection, hide on key press, auto-rotate, rotation lock, gestures, and a link to all settings.
+- **Control center tile:** tap toggles the keyboard; the detail view shows the same quick settings.
+- **IPC** for scripts and keybinds (see [IPC](#ipc)).
+
+### Idle cost
+No polling and no timers. Nothing runs while idle except one sleeping watcher (`udevadm` or `libinput`), and only while physical keyboard detection or the tablet-mode switch option is on. The accelerometer is held only while auto-rotate is on and unlocked.
+
 ## Requirements
 
 | Feature | Compositors | Packages (Arch names) | Extra setup |
