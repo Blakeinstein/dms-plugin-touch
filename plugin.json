@@ -1,0 +1,18 @@
+{
+    "id": "duxTouch",
+    "name": "Touch",
+    "description": "On-screen keyboard (wvkbd), tablet mode, auto-rotation and Hyprland touch gestures (hyprgrass)",
+    "version": "0.1.0",
+    "author": "Dux Modular Shell",
+    "type": "composite",
+    "capabilities": ["daemon", "dankbar-widget", "control-center", "touch"],
+    "icon": "touch_app",
+    "components": {
+        "daemon": "./TouchDaemon.qml",
+        "widget": "./TouchWidget.qml"
+    },
+    "settings": "./TouchSettings.qml",
+    "requires_dms": ">=2.2.0",
+    "dependencies": ["wvkbd"],
+    "permissions": ["settings_read", "settings_write", "process"]
+}
