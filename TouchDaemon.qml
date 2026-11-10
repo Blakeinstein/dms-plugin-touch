@@ -30,8 +30,9 @@ PluginComponent {
     property bool keyboardAvailable: false
     property bool keyboardVisible: false
 
-    readonly property bool autoTabletMode: pluginData.autoTabletMode ?? true
-    readonly property bool hideOnKeyPress: pluginData.hideOnKeyPress ?? true
+    readonly property bool physicalKeyboard: pluginData.physicalKeyboard ?? true
+    readonly property bool autoTabletMode: physicalKeyboard && (pluginData.autoTabletMode ?? true)
+    readonly property bool hideOnKeyPress: physicalKeyboard && (pluginData.hideOnKeyPress ?? true)
     readonly property bool followTabletSwitch: pluginData.followTabletSwitch ?? true
     readonly property bool showHideButton: pluginData.showHideButton ?? true
     // "", "udev" or "libinput"; libinput needs read access to /dev/input (the input group)
@@ -47,7 +48,7 @@ PluginComponent {
             "height": pluginData.keyboardHeight ?? 250,
             "landscapeHeight": pluginData.keyboardLandscapeHeight ?? 200,
             "layers": pluginData.keyboardLayers || "",
-            "auto": tabletMode && externalKeyboardCount === 0 && (pluginData.keyboardAuto ?? true),
+            "auto": tabletMode && !(physicalKeyboard && externalKeyboardCount > 0) && (pluginData.keyboardAuto ?? true),
             "radius": Theme.cornerRadius,
             "font": Theme.fontFamily,
             "fontSize": Theme.fontSizeLarge,
@@ -178,6 +179,8 @@ PluginComponent {
             pluginService?.savePluginState(pluginId, "externalKeyboards", nodes.length);
             // Only transitions count, so a laptop whose keyboard never detaches is never pushed into tablet mode
             if (before < 0 || (before > 0) === (nodes.length > 0))
+                return;
+            if (!physicalKeyboard)
                 return;
             if (nodes.length > 0) {
                 hideKeyboard();
@@ -457,6 +460,7 @@ PluginComponent {
                 "keyboardVisible": root.keyboardVisible,
                 "keyboardRunning": osk.running,
                 "tabletMode": root.tabletMode,
+                "physicalKeyboard": root.physicalKeyboard,
                 "tabletModeManaged": root.pluginService?.loadPluginState(root.pluginId, "tabletModeManaged", false) ?? false,
                 "inputTier": root.inputTier,
                 "inputWatcherRunning": inputWatcher.running,

@@ -39,6 +39,15 @@ Column {
 
     DToggle {
         width: parent.width
+        text: I18n.trFor("duxTouch", "Physical keyboard detection")
+        description: I18n.trFor("duxTouch", "React when a keyboard is attached, detached or typed on")
+        checked: quick.opts.physicalKeyboard ?? true
+        onToggled: checked => quick.setOption("physicalKeyboard", checked)
+    }
+
+    DToggle {
+        width: parent.width
+        visible: quick.opts.physicalKeyboard ?? true
         text: I18n.trFor("duxTouch", "Automatic tablet mode")
         description: I18n.trFor("duxTouch", "Turn tablet mode on when the keyboard is detached")
         checked: quick.opts.autoTabletMode ?? true
@@ -54,7 +63,7 @@ Column {
 
     DToggle {
         width: parent.width
-        visible: quick.hasInputAccess
+        visible: quick.hasInputAccess && (quick.opts.physicalKeyboard ?? true)
         text: I18n.trFor("duxTouch", "Hide on key press")
         description: I18n.trFor("duxTouch", "Hide the on-screen keyboard when you type on a physical keyboard")
         checked: quick.opts.hideOnKeyPress ?? true

@@ -224,6 +224,13 @@ PluginSettings {
     }
 
     ToggleSetting {
+        settingKey: "physicalKeyboard"
+        label: I18n.trFor("duxTouch", "Physical keyboard detection")
+        description: I18n.trFor("duxTouch", "Hide the on-screen keyboard when a keyboard is attached, and allow the options below")
+        defaultValue: true
+    }
+
+    ToggleSetting {
         settingKey: "autoTabletMode"
         label: I18n.trFor("duxTouch", "Automatic tablet mode")
         description: I18n.trFor("duxTouch", "Turn tablet mode on when the last external keyboard is detached, and off again when one is attached, unless you turned it on yourself")

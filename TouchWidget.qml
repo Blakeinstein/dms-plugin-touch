@@ -10,6 +10,7 @@ PluginComponent {
     readonly property Item daemon: pluginService?.pluginDaemonInstances?.[pluginId] ?? null
     readonly property bool keyboardVisible: daemon?.keyboardVisible ?? false
     readonly property bool tabletMode: pluginData.tabletMode ?? false
+    readonly property string modeIcon: tabletMode ? "tablet_android" : "laptop"
     property bool _quickRequested: false
 
     // triggerPopout() runs pillClickAction when one is set, so it is nulled for the one call that opens the popout
@@ -19,13 +20,13 @@ PluginComponent {
         _quickRequested = false;
     }
 
-    // Static literal: the control center probes plugins before pluginData loads
-    ccWidgetIcon: "keyboard"
+    // Never empty: the control center only lists plugins whose probe instance has an icon
+    ccWidgetIcon: modeIcon
     ccWidgetPrimaryText: I18n.trFor("duxTouch", "Keyboard")
     ccWidgetSecondaryText: {
-        if (tabletMode)
-            return I18n.trFor("duxTouch", "Tablet mode");
-        return keyboardVisible ? I18n.trFor("duxTouch", "Shown") : I18n.trFor("duxTouch", "Hidden");
+        const mode = tabletMode ? I18n.trFor("duxTouch", "Tablet mode") : I18n.trFor("duxTouch", "Laptop mode");
+        const keyboard = keyboardVisible ? I18n.trFor("duxTouch", "Shown") : I18n.trFor("duxTouch", "Hidden");
+        return mode + " · " + keyboard;
     }
     ccWidgetIsActive: keyboardVisible
 
@@ -58,7 +59,7 @@ PluginComponent {
 
     // The shell's pill reacts on press and has no long press, so the icon handles both itself
     component PillIcon: DIcon {
-        name: root.tabletMode ? "tablet" : "keyboard"
+        name: root.modeIcon
         size: root.iconSize
         color: root.keyboardVisible ? Theme.primary : Theme.surfaceText
 
