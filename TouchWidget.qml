@@ -7,11 +7,17 @@ import qs.Modules.Plugins
 PluginComponent {
     id: root
 
-    readonly property QtObject daemon: pluginService?.pluginDaemonInstances?.[pluginId] ?? null
+    readonly property Item daemon: pluginService?.pluginDaemonInstances?.[pluginId] ?? null
     readonly property bool keyboardVisible: daemon?.keyboardVisible ?? false
     readonly property bool tabletMode: pluginData.tabletMode ?? false
-    readonly property bool rotationEnabled: pluginData.rotationEnabled ?? false
-    readonly property bool rotationLocked: pluginData.rotationLocked ?? false
+    property bool _quickRequested: false
+
+    // triggerPopout() runs pillClickAction when one is set, so it is nulled for the one call that opens the popout
+    function openQuickSettings() {
+        _quickRequested = true;
+        triggerPopout();
+        _quickRequested = false;
+    }
 
     // Static literal: the control center probes plugins before pluginData loads
     ccWidgetIcon: "keyboard"
@@ -25,50 +31,67 @@ PluginComponent {
 
     onCcWidgetToggled: daemon?.toggleKeyboard()
 
-    pillClickAction: () => root.daemon?.toggleKeyboard()
-    pillRightClickAction: () => root.daemon?.setTabletMode(!root.tabletMode)
+    pillClickAction: _quickRequested ? null : (() => root.daemon?.toggleKeyboard())
+    pillRightClickAction: () => root.openQuickSettings()
 
-    horizontalBarPill: Component {
-        DIcon {
-            name: root.tabletMode ? "tablet" : "keyboard"
-            size: root.iconSize
-            color: root.keyboardVisible ? Theme.primary : Theme.surfaceText
+    popoutWidth: Theme.fontSizeMedium * 24
+    popoutContent: Component {
+        PopoutComponent {
+            id: popout
+            headerText: I18n.trFor("duxTouch", "Touch")
+
+            QuickSettings {
+                width: parent.width
+                host: root
+                onCloseRequested: popout.closePopout()
+            }
         }
     }
 
+    horizontalBarPill: Component {
+        PillIcon {}
+    }
+
     verticalBarPill: Component {
-        DIcon {
-            name: root.tabletMode ? "tablet" : "keyboard"
-            size: root.iconSize
-            color: root.keyboardVisible ? Theme.primary : Theme.surfaceText
+        PillIcon {}
+    }
+
+    // The shell's pill reacts on press and has no long press, so the icon handles both itself
+    component PillIcon: DIcon {
+        name: root.tabletMode ? "tablet" : "keyboard"
+        size: root.iconSize
+        color: root.keyboardVisible ? Theme.primary : Theme.surfaceText
+
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.PointingHandCursor
+            onClicked: mouse => {
+                if (mouse.button === Qt.RightButton)
+                    root.openQuickSettings();
+                else
+                    root.daemon?.toggleKeyboard();
+            }
+            onPressAndHold: root.openQuickSettings()
         }
     }
 
     ccDetailContent: Component {
         Item {
             readonly property string title: I18n.trFor("duxTouch", "Touch")
-            implicitHeight: detailColumn.implicitHeight + Theme.spacingM * 2
+            implicitHeight: quick.implicitHeight + Theme.spacingM * 2
 
-            Column {
-                id: detailColumn
+            DFlickable {
                 anchors.fill: parent
-                anchors.margins: Theme.spacingM
-                spacing: Theme.spacingS
+                contentHeight: quick.implicitHeight + Theme.spacingM * 2
+                clip: true
 
-                DToggle {
-                    width: parent.width
-                    text: I18n.trFor("duxTouch", "Tablet mode")
-                    description: I18n.trFor("duxTouch", "Keep the keyboard ready and show it when a text field is focused")
-                    checked: root.tabletMode
-                    onToggled: checked => root.daemon?.setTabletMode(checked)
-                }
-
-                DToggle {
-                    width: parent.width
-                    visible: root.rotationEnabled
-                    text: I18n.trFor("duxTouch", "Rotation lock")
-                    checked: root.rotationLocked
-                    onToggled: checked => root.daemon?.setRotationLocked(checked)
+                QuickSettings {
+                    id: quick
+                    x: Theme.spacingM
+                    y: Theme.spacingM
+                    width: parent.width - Theme.spacingM * 2
+                    host: root
                 }
             }
         }

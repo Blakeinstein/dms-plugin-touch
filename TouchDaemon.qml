@@ -1,11 +1,14 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import qs.Common
 import qs.Services
 import qs.Modules.Plugins
 import "touchlua.js" as TouchLua
 import "wvkbd.js" as Wvkbd
 import "rotation.js" as Rotation
+import "inputs.js" as Inputs
 
 PluginComponent {
     id: root
@@ -27,12 +30,24 @@ PluginComponent {
     property bool keyboardAvailable: false
     property bool keyboardVisible: false
 
+    readonly property bool autoTabletMode: pluginData.autoTabletMode ?? true
+    readonly property bool hideOnKeyPress: pluginData.hideOnKeyPress ?? true
+    readonly property bool followTabletSwitch: pluginData.followTabletSwitch ?? true
+    readonly property bool showHideButton: pluginData.showHideButton ?? true
+    // "", "udev" or "libinput"; libinput needs read access to /dev/input (the input group)
+    property string inputTier: ""
+    property var externalKeyboardNodes: []
+    readonly property int externalKeyboardCount: externalKeyboardNodes.length
+    readonly property bool inputWatchWanted: autoTabletMode || hideOnKeyPress || followTabletSwitch
+    property bool _inputScanned: false
+    property bool _restartVisible: false
+
     readonly property var keyboardOptions: ({
             "binary": keyboardBinary,
             "height": pluginData.keyboardHeight ?? 250,
             "landscapeHeight": pluginData.keyboardLandscapeHeight ?? 200,
             "layers": pluginData.keyboardLayers || "",
-            "auto": tabletMode && (pluginData.keyboardAuto ?? true),
+            "auto": tabletMode && externalKeyboardCount === 0 && (pluginData.keyboardAuto ?? true),
             "radius": Theme.cornerRadius,
             "font": Theme.fontFamily,
             "fontSize": Theme.fontSizeLarge,
@@ -85,6 +100,7 @@ PluginComponent {
     onKeyboardCommandChanged: Qt.callLater(reconcileKeyboard)
     onTouchLuaChanged: Qt.callLater(writeTouchLua)
     onRotationActiveChanged: rotationActive ? startRotation() : stopRotation()
+    onInputWatchWantedChanged: syncInputWatcher()
     onRotationOutputChanged: applyRotation()
 
     function toggle() {
@@ -116,7 +132,13 @@ PluginComponent {
         Qt.callLater(reconcileKeyboard);
     }
 
+    // A manual change takes ownership away from automatic tablet mode
     function setTabletMode(enabled) {
+        pluginService?.savePluginState(pluginId, "tabletModeManaged", false);
+        applyTabletMode(enabled);
+    }
+
+    function applyTabletMode(enabled) {
         if (!enabled)
             keyboardVisible = false;
         pluginService?.savePluginData(pluginId, "tabletMode", enabled);
@@ -124,6 +146,104 @@ PluginComponent {
 
     function setRotationLocked(locked) {
         pluginService?.savePluginData(pluginId, "rotationLocked", locked);
+    }
+
+    function setOption(key, value) {
+        if (key === "tabletMode") {
+            setTabletMode(value);
+            return;
+        }
+        pluginService?.savePluginData(pluginId, key, value);
+    }
+
+    function wantTablet(want) {
+        if (!autoTabletMode && !followTabletSwitch)
+            return;
+        const next = Inputs.tabletDecision(want, {
+            "tabletMode": tabletMode,
+            "managed": pluginService?.loadPluginState(pluginId, "tabletModeManaged", false) ?? false
+        });
+        if (!next)
+            return;
+        pluginService?.savePluginState(pluginId, "tabletModeManaged", next.managed);
+        applyTabletMode(next.tabletMode);
+    }
+
+    function scanInputs() {
+        Proc.runCommand("duxtouch-input-scan", ["sh", "-c", Inputs.SCAN_SCRIPT], (output, exitCode) => {
+            const nodes = Inputs.externalKeyboards(output).map(d => d.node);
+            const before = _inputScanned ? externalKeyboardCount : (pluginService?.loadPluginState(pluginId, "externalKeyboards", -1) ?? -1);
+            _inputScanned = true;
+            externalKeyboardNodes = nodes;
+            pluginService?.savePluginState(pluginId, "externalKeyboards", nodes.length);
+            // Only transitions count, so a laptop whose keyboard never detaches is never pushed into tablet mode
+            if (before < 0 || (before > 0) === (nodes.length > 0))
+                return;
+            if (nodes.length > 0) {
+                hideKeyboard();
+                if (autoTabletMode)
+                    wantTablet(false);
+            } else if (autoTabletMode) {
+                wantTablet(true);
+            }
+        }, 300);
+    }
+
+    function handleInputLine(line) {
+        if (inputTier === "udev") {
+            if (/\b(add|remove)\b/.test(line))
+                scanInputs();
+            return;
+        }
+        const event = Inputs.parseLibinputLine(line);
+        if (!event)
+            return;
+        switch (event.type) {
+        case "devices":
+            scanInputs();
+            break;
+        case "key":
+            if (hideOnKeyPress && keyboardVisible && externalKeyboardNodes.includes(event.node))
+                hideKeyboard();
+            break;
+        case "tabletSwitch":
+            if (followTabletSwitch)
+                wantTablet(event.on);
+            break;
+        }
+    }
+
+    function detectInputTier() {
+        const script = 'command -v libinput >/dev/null 2>&1 && for e in /dev/input/event*; do [ -r "$e" ] && { echo libinput; exit 0; }; done; command -v udevadm >/dev/null 2>&1 && echo udev';
+        Proc.runCommand("duxtouch-input-tier", ["sh", "-c", script], output => {
+            inputTier = output.trim();
+            syncInputWatcher();
+        });
+    }
+
+    function syncInputWatcher() {
+        const wanted = inputWatchWanted && inputTier !== "";
+        if (!wanted) {
+            stopInputWatcher();
+            return;
+        }
+        if (inputWatcher.running)
+            return;
+        scanInputs();
+        if (inputTier === "libinput")
+            inputWatcher.command = ["sh", "-c", "libinput debug-events 2>/dev/null | grep --line-buffered -E 'DEVICE_(ADDED|REMOVED)|KEYBOARD_KEY|SWITCH_TOGGLE'"];
+        else
+            inputWatcher.command = ["udevadm", "monitor", "--udev", "--subsystem-match=input"];
+        inputWatcher.running = true;
+    }
+
+    // The libinput pipeline runs under sh, so its children are stopped by parent pid
+    function stopInputWatcher() {
+        if (!inputWatcher.running)
+            return;
+        if (inputWatcher.processId > 0)
+            Quickshell.execDetached(["pkill", "-P", String(inputWatcher.processId)]);
+        inputWatcher.running = false;
     }
 
     // Outside tablet mode wvkbd only exists while shown; in tablet mode it stays resident and is shown by signal
@@ -138,6 +258,7 @@ PluginComponent {
         if (osk.running) {
             if (_runningCommand === keyboardCommand)
                 return;
+            _restartVisible = keyboardVisible;
             _restartPending = true;
             osk.running = false;
             return;
@@ -231,6 +352,7 @@ PluginComponent {
         onExited: (exitCode, exitStatus) => {
             if (root._restartPending) {
                 root._restartPending = false;
+                root.keyboardVisible = root._restartVisible;
                 Qt.callLater(root.reconcileKeyboard);
                 return;
             }
@@ -238,6 +360,40 @@ PluginComponent {
             if (exitStatus === 0 && exitCode !== 0)
                 root.log.warn("wvkbd exited with code", exitCode);
             root.keyboardVisible = false;
+        }
+    }
+
+    Process {
+        id: inputWatcher
+
+        stdout: SplitParser {
+            onRead: line => root.handleInputLine(line)
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            if (exitStatus === 0 && exitCode !== 0)
+                root.log.warn("Input watcher exited with code", exitCode);
+        }
+    }
+
+    // wvkbd destroys its layer surface when hidden, so these events are its real visibility, including --auto
+    Connections {
+        target: CompositorService.isHyprland ? Hyprland : null
+
+        function onRawEvent(event) {
+            if (event.data !== "wvkbd" || root._restartPending)
+                return;
+            if (event.name === "openlayer")
+                root.keyboardVisible = true;
+            else if (event.name === "closelayer")
+                root.keyboardVisible = false;
+        }
+    }
+
+    LazyLoader {
+        active: root.keyboardVisible && root.showHideButton
+        KeyboardBar {
+            daemon: root
         }
     }
 
@@ -301,13 +457,20 @@ PluginComponent {
                 "keyboardVisible": root.keyboardVisible,
                 "keyboardRunning": osk.running,
                 "tabletMode": root.tabletMode,
+                "tabletModeManaged": root.pluginService?.loadPluginState(root.pluginId, "tabletModeManaged", false) ?? false,
+                "inputTier": root.inputTier,
+                "inputWatcherRunning": inputWatcher.running,
+                "externalKeyboards": root.externalKeyboardNodes,
                 "rotationActive": root.rotationActive,
                 "rotationOutput": root.rotationOutput
             });
         }
     }
 
+    Component.onCompleted: detectInputTier()
+
     Component.onDestruction: {
+        stopInputWatcher();
         osk.running = false;
         if (_sensorSubscription)
             stopRotation();

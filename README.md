@@ -23,6 +23,21 @@ Add the Touch tile to the control center or the Touch widget to a bar.
 
 Outside tablet mode wvkbd only runs while it is shown. Tablet mode keeps it running hidden, so it opens instantly. With "Show on text focus" it also opens when a text field takes focus (`wvkbd --auto`). Colors, font and corner radius follow the shell theme.
 
+Tap the bar icon to toggle the keyboard. Long-press or right-click it for quick settings. A button above the keyboard hides it.
+
+### External keyboards
+
+When a USB or Bluetooth keyboard is attached, the on-screen keyboard hides. With **Automatic tablet mode**, detaching the last external keyboard turns tablet mode on, and attaching one turns it off again. Tablet mode you turned on yourself is never switched off.
+
+Without extra setup, only attach and detach are seen, through `udevadm monitor`. To also hide on a physical key press and follow the hardware tablet-mode switch, install `libinput-tools` and join the `input` group:
+
+```sh
+sudo pacman -S libinput-tools
+sudo usermod -aG input $USER   # log out and back in
+```
+
+Members of the `input` group can read every input device, including keystrokes typed into other apps and the lock screen.
+
 ## Gestures
 
 Settings write `~/.config/hypr/dms/touch.lua`. If your Hyprland config does not load it yet, press **Enable** on the settings page. That appends `pcall(require, "dms.touch")` to `dms/binds-user.lua`.

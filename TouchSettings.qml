@@ -224,6 +224,43 @@ PluginSettings {
     }
 
     ToggleSetting {
+        settingKey: "autoTabletMode"
+        label: I18n.trFor("duxTouch", "Automatic tablet mode")
+        description: I18n.trFor("duxTouch", "Turn tablet mode on when the last external keyboard is detached, and off again when one is attached, unless you turned it on yourself")
+        defaultValue: true
+    }
+
+    ToggleSetting {
+        settingKey: "hideOnKeyPress"
+        label: I18n.trFor("duxTouch", "Hide on key press")
+        description: I18n.trFor("duxTouch", "Hide the on-screen keyboard when you type on a physical keyboard")
+        defaultValue: true
+    }
+
+    ToggleSetting {
+        settingKey: "followTabletSwitch"
+        label: I18n.trFor("duxTouch", "Follow tablet mode switch")
+        description: I18n.trFor("duxTouch", "Use the hardware tablet mode switch on convertibles")
+        defaultValue: true
+    }
+
+    ToggleSetting {
+        settingKey: "showHideButton"
+        label: I18n.trFor("duxTouch", "Hide button")
+        description: I18n.trFor("duxTouch", "Show a button above the keyboard that hides it")
+        defaultValue: true
+    }
+
+    StyledText {
+        width: parent.width
+        wrapMode: Text.WordWrap
+        font.pixelSize: Theme.fontSizeSmall
+        readonly property string tier: root.pluginService?.pluginDaemonInstances?.[root.pluginId]?.inputTier ?? ""
+        color: tier === "libinput" ? Theme.surfaceVariantText : Theme.warning
+        text: tier === "libinput" ? I18n.trFor("duxTouch", "Input access is available: key presses and the tablet switch are followed.") : I18n.trFor("duxTouch", "Only keyboard attach and detach are followed. For key presses and the tablet switch, add yourself to the input group and install libinput-tools.")
+    }
+
+    ToggleSetting {
         settingKey: "keyboardAuto"
         label: I18n.trFor("duxTouch", "Show on text focus")
         description: I18n.trFor("duxTouch", "In tablet mode, open the keyboard when a text field is focused")
