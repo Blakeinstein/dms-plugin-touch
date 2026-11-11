@@ -1,5 +1,7 @@
 # Touch (duxTouch)
 
+![Touch](preview.jpg)
+
 On-screen keyboard, tablet mode, auto-rotation and Hyprland touch gestures.
 
 ## Features
