@@ -2,7 +2,7 @@
 
 ![Touch](preview.jpg)
 
-On-screen keyboard, tablet mode, auto-rotation and Hyprland touch gestures.
+On-screen keyboard (wvkbd or the Virtual Keyboard plugin), tablet mode, auto-rotation and touch gestures. Works on any compositor with layer-shell and wlr-output-management; touch gestures need Hyprland for now.
 
 ## Screenshots
 
@@ -13,11 +13,10 @@ On-screen keyboard, tablet mode, auto-rotation and Hyprland touch gestures.
 ## Features
 
 ### On-screen keyboard
-- [wvkbd](https://github.com/jjsullivan5196/wvkbd), themed from the shell: colors, font and corner radius follow the current theme and update when it changes.
-- Choose the wvkbd variant, portrait and landscape heights, and layers.
-- A hide button sits just above the keyboard.
+- Pick a backend in settings: [wvkbd](https://github.com/jjsullivan5196/wvkbd), or the [Virtual Keyboard](https://github.com/sitolam/dux-plugins/tree/main/plugins/virtualkeyboard) plugin if it's enabled. Only installed backends are offered; if neither is, the setting says so.
+- With wvkbd: themed from the shell (colors, font and corner radius follow the current theme and update when it changes), choice of variant, portrait and landscape heights, and layers. A hide button sits just above the keyboard. Outside tablet mode it runs only while shown.
+- With the Virtual Keyboard plugin: its own window, pill and settings apply; this plugin only shows/hides/toggles it.
 - Toggle it from the bar icon, the control center tile, a touch gesture or IPC.
-- Outside tablet mode it runs only while shown.
 
 ### Tablet mode
 - Keeps the keyboard running in the background, so it opens instantly.
@@ -37,7 +36,7 @@ On-screen keyboard, tablet mode, auto-rotation and Hyprland touch gestures.
 - Rotation lock in quick settings, the control center and IPC.
 - The rotation survives Hyprland config reloads.
 
-### Touch gestures (Hyprland)
+### Touch gestures (Hyprland only, for now)
 - Built on hyprgrass: edge swipes, multi-finger swipes, taps, pinches and long presses.
 - Gesture editor. Each gesture runs one of: next or previous workspace, close, fullscreen, float, drag window, toggle keyboard, control center, launcher, notifications, or a custom command.
 - Defaults:
@@ -62,12 +61,13 @@ No polling and no timers. Nothing runs while idle except one sleeping watcher (`
 
 | Feature | Compositors | Packages (Arch names) | Extra setup |
 | --- | --- | --- | --- |
-| On-screen keyboard, tablet mode, hide button | any with layer-shell and virtual-keyboard | `wvkbd` | none |
-| Show on text focus | any with input-method-v2 | `wvkbd` | none |
+| On-screen keyboard, tablet mode, hide button (wvkbd backend) | any with layer-shell and virtual-keyboard | `wvkbd` | none |
+| On-screen keyboard (Virtual Keyboard plugin backend) | any | `ydotool` | enable the [Virtual Keyboard](https://github.com/sitolam/dux-plugins/tree/main/plugins/virtualkeyboard) plugin |
+| Show on text focus | any with input-method-v2 | `wvkbd` | none, wvkbd backend only |
 | Keyboard attach and detach | any | `systemd` (`udevadm`) | none |
 | Hide on key press, tablet-mode switch | any | `libinput-tools` | `input` group |
 | Auto-rotation | any with wlr-output-management | `iio-sensor-proxy` | an accelerometer |
-| Touch gestures | Hyprland with Lua config | [hyprgrass](https://github.com/horriblename/hyprgrass), built by `hyprpm` (`cmake`, `meson`, `ninja`, `cpio`, `git`, `gcc`, `glm`) | load `dms.touch` |
+| Touch gestures | Hyprland with Lua config (other compositors planned) | [hyprgrass](https://github.com/horriblename/hyprgrass), built by `hyprpm` (`cmake`, `meson`, `ninja`, `cpio`, `git`, `gcc`, `glm`) | load `dms.touch` |
 
 Everything else comes with DMS. Features whose requirements are missing simply stay inactive.
 
@@ -94,7 +94,7 @@ Check it with `dms ipc call duxTouch status`. `"inputTier"` is `"libinput"` with
 
 ### Other compositors
 
-On niri, set `map-to-output` in the `touch` input block so touches follow a rotated panel. Gestures are Hyprland only.
+The on-screen keyboard, tablet mode and auto-rotation work on any compositor with layer-shell and wlr-output-management. On niri, set `map-to-output` in the `touch` input block so touches follow a rotated panel. Touch gestures need Hyprland (hyprgrass) for now; other compositors may be added later.
 
 ## Install
 

@@ -1,7 +1,7 @@
 {
     "id": "duxTouch",
     "name": "Touch",
-    "description": "On-screen keyboard (wvkbd), tablet mode, auto-rotation and Hyprland touch gestures (hyprgrass)",
+    "description": "On-screen keyboard (wvkbd or the Virtual Keyboard plugin), tablet mode, auto-rotation and touch gestures (hyprgrass, Hyprland only for now)",
     "version": "0.1.0",
     "author": "Dux Modular Shell",
     "type": "composite",

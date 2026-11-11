@@ -13,6 +13,25 @@ PluginSettings {
     readonly property bool hyprland: CompositorService.isHyprland
     readonly property string hyprDir: HyprlandService.configDir + "/hypr"
     property bool hyprgrassLoaded: false
+
+    readonly property var touchInstance: root.pluginService?.pluginDaemonInstances?.[root.pluginId] ?? null
+    readonly property string keyboardBackend: touchInstance?.keyboardBackend ?? "wvkbd"
+    readonly property bool wvkbdAvailable: touchInstance?.wvkbdAvailable ?? false
+    readonly property bool virtualKeyboardAvailable: touchInstance?.virtualKeyboardAvailable ?? false
+    readonly property var keyboardBackendOptions: {
+        const opts = [];
+        if (wvkbdAvailable)
+            opts.push({
+                "label": I18n.trFor("duxTouch", "wvkbd"),
+                "value": "wvkbd"
+            });
+        if (virtualKeyboardAvailable)
+            opts.push({
+                "label": I18n.trFor("duxTouch", "Virtual Keyboard plugin"),
+                "value": "virtualKeyboard"
+            });
+        return opts;
+    }
     property bool touchRequired: true
     property int _bindingsRevision: 0
     readonly property var bindings: {
@@ -168,7 +187,26 @@ PluginSettings {
         color: Theme.surfaceText
     }
 
+    StyledText {
+        width: parent.width
+        wrapMode: Text.WordWrap
+        visible: root.keyboardBackendOptions.length === 0
+        font.pixelSize: Theme.fontSizeSmall
+        color: Theme.warning
+        text: I18n.trFor("duxTouch", "No on-screen keyboard backend is installed. Install wvkbd, or enable the Virtual Keyboard plugin.")
+    }
+
+    SelectionSetting {
+        visible: root.keyboardBackendOptions.length > 0
+        settingKey: "keyboardBackend"
+        label: I18n.trFor("duxTouch", "Keyboard backend")
+        description: I18n.trFor("duxTouch", "Which on-screen keyboard to show. Only installed backends are listed.")
+        defaultValue: "wvkbd"
+        options: root.keyboardBackendOptions
+    }
+
     StringSetting {
+        visible: root.keyboardBackend === "wvkbd"
         settingKey: "keyboardBinary"
         label: I18n.trFor("duxTouch", "Keyboard program")
         description: I18n.trFor("duxTouch", "wvkbd variant to run, for example wvkbd-mobintl or wvkbd-deskintl")
@@ -177,6 +215,7 @@ PluginSettings {
     }
 
     SliderSetting {
+        visible: root.keyboardBackend === "wvkbd"
         settingKey: "keyboardHeight"
         label: I18n.trFor("duxTouch", "Portrait height")
         defaultValue: 250
@@ -186,6 +225,7 @@ PluginSettings {
     }
 
     SliderSetting {
+        visible: root.keyboardBackend === "wvkbd"
         settingKey: "keyboardLandscapeHeight"
         label: I18n.trFor("duxTouch", "Landscape height")
         defaultValue: 200
@@ -195,6 +235,7 @@ PluginSettings {
     }
 
     StringSetting {
+        visible: root.keyboardBackend === "wvkbd"
         settingKey: "keyboardLayers"
         label: I18n.trFor("duxTouch", "Layers")
         description: I18n.trFor("duxTouch", "Comma separated wvkbd layers. Leave empty for the default set.")
@@ -203,6 +244,7 @@ PluginSettings {
     }
 
     ToggleSetting {
+        visible: root.keyboardBackend === "wvkbd"
         settingKey: "keyboardFollowTheme"
         label: I18n.trFor("duxTouch", "Follow shell theme")
         defaultValue: true
@@ -252,6 +294,7 @@ PluginSettings {
     }
 
     ToggleSetting {
+        visible: root.keyboardBackend === "wvkbd"
         settingKey: "showHideButton"
         label: I18n.trFor("duxTouch", "Hide button")
         description: I18n.trFor("duxTouch", "Show a button above the keyboard that hides it")
@@ -268,6 +311,7 @@ PluginSettings {
     }
 
     ToggleSetting {
+        visible: root.keyboardBackend === "wvkbd"
         settingKey: "keyboardAuto"
         label: I18n.trFor("duxTouch", "Show on text focus")
         description: I18n.trFor("duxTouch", "In tablet mode, open the keyboard when a text field is focused")

@@ -24,10 +24,16 @@ PluginComponent {
     readonly property bool tabletMode: pluginData.tabletMode ?? false
     readonly property bool rotationLocked: pluginData.rotationLocked ?? false
     readonly property string keyboardBinary: pluginData.keyboardBinary || "wvkbd-mobintl"
+    readonly property string keyboardBackend: pluginData.keyboardBackend || "wvkbd"
+    readonly property string virtualKeyboardPluginId: "virtualKeyboard"
     readonly property string rotationOutput: pluginData.rotationOutput && pluginData.rotationOutput !== "auto" ? pluginData.rotationOutput : Rotation.defaultOutput(WlrOutputService.outputs)
     readonly property bool rotationActive: (pluginData.rotationEnabled ?? false) && !rotationLocked && DMSService.isConnected && DMSService.capabilities.includes("dbus") && WlrOutputService.wlrOutputAvailable
 
-    property bool keyboardAvailable: false
+    // Whether the wvkbd binary itself resolves on PATH, independent of which backend is selected
+    property bool wvkbdAvailable: false
+    // Whether the sibling Virtual Keyboard plugin is installed and enabled
+    readonly property bool virtualKeyboardAvailable: pluginService?.isPluginLoaded(virtualKeyboardPluginId) ?? false
+    readonly property bool keyboardAvailable: keyboardBackend === "virtualKeyboard" ? virtualKeyboardAvailable : wvkbdAvailable
     property bool keyboardVisible: false
 
     readonly property bool physicalKeyboard: pluginData.physicalKeyboard ?? true
@@ -91,11 +97,18 @@ PluginComponent {
 
     onKeyboardBinaryChanged: {
         Proc.runCommand("duxtouch-wvkbd-check", ["sh", "-c", 'command -v "$1"', "sh", keyboardBinary], (output, exitCode) => {
-            keyboardAvailable = exitCode === 0;
-            if (!keyboardAvailable)
+            wvkbdAvailable = exitCode === 0;
+            if (!wvkbdAvailable)
                 log.info("On-screen keyboard not found:", keyboardBinary);
             Qt.callLater(reconcileKeyboard);
         });
+    }
+    onKeyboardBackendChanged: {
+        if (keyboardBackend === "virtualKeyboard")
+            keyboardVisible = pluginService?.getGlobalVar(virtualKeyboardPluginId, "open", false) ?? false;
+        else
+            keyboardVisible = false;
+        Qt.callLater(reconcileKeyboard);
     }
     onTabletModeChanged: Qt.callLater(reconcileKeyboard)
     onKeyboardCommandChanged: Qt.callLater(reconcileKeyboard)
@@ -117,7 +130,12 @@ PluginComponent {
 
     function showKeyboard() {
         if (!keyboardAvailable) {
-            ToastService.showError(I18n.trFor("duxTouch", "On-screen keyboard not found"), keyboardBinary);
+            ToastService.showError(I18n.trFor("duxTouch", "On-screen keyboard not found"), keyboardBackend === "virtualKeyboard" ? I18n.trFor("duxTouch", "Virtual Keyboard plugin") : keyboardBinary);
+            return;
+        }
+        if (keyboardBackend === "virtualKeyboard") {
+            pluginService?.setGlobalVar(virtualKeyboardPluginId, "open", true);
+            keyboardVisible = true;
             return;
         }
         if (osk.running && tabletMode)
@@ -127,6 +145,11 @@ PluginComponent {
     }
 
     function hideKeyboard() {
+        if (keyboardBackend === "virtualKeyboard") {
+            pluginService?.setGlobalVar(virtualKeyboardPluginId, "open", false);
+            keyboardVisible = false;
+            return;
+        }
         if (osk.running && tabletMode)
             osk.signal(sigHide);
         keyboardVisible = false;
@@ -140,8 +163,11 @@ PluginComponent {
     }
 
     function applyTabletMode(enabled) {
-        if (!enabled)
+        if (!enabled) {
+            if (keyboardBackend === "virtualKeyboard")
+                pluginService?.setGlobalVar(virtualKeyboardPluginId, "open", false);
             keyboardVisible = false;
+        }
         pluginService?.savePluginData(pluginId, "tabletMode", enabled);
     }
 
@@ -251,6 +277,10 @@ PluginComponent {
 
     // Outside tablet mode wvkbd only exists while shown; in tablet mode it stays resident and is shown by signal
     function reconcileKeyboard() {
+        if (keyboardBackend !== "wvkbd") {
+            osk.running = false;
+            return;
+        }
         if (_restartPending)
             return;
         const wanted = keyboardAvailable && (tabletMode || keyboardVisible);
@@ -381,7 +411,7 @@ PluginComponent {
 
     // wvkbd destroys its layer surface when hidden, so these events are its real visibility, including --auto
     Connections {
-        target: CompositorService.isHyprland ? Hyprland : null
+        target: CompositorService.isHyprland && root.keyboardBackend === "wvkbd" ? Hyprland : null
 
         function onRawEvent(event) {
             if (event.data !== "wvkbd" || root._restartPending)
@@ -393,10 +423,20 @@ PluginComponent {
         }
     }
 
+    // The Virtual Keyboard plugin brings its own hide affordance (DankBar pill), so the floating hide button is wvkbd-only
     LazyLoader {
-        active: root.keyboardVisible && root.showHideButton
+        active: root.keyboardBackend === "wvkbd" && root.keyboardVisible && root.showHideButton
         KeyboardBar {
             daemon: root
+        }
+    }
+
+    Connections {
+        target: root.pluginService
+        enabled: root.keyboardBackend === "virtualKeyboard"
+        function onGlobalVarChanged(pluginId, varName) {
+            if (pluginId === root.virtualKeyboardPluginId && varName === "open")
+                root.keyboardVisible = root.pluginService.getGlobalVar(root.virtualKeyboardPluginId, "open", false);
         }
     }
 
@@ -456,6 +496,7 @@ PluginComponent {
 
         function status(): string {
             return JSON.stringify({
+                "keyboardBackend": root.keyboardBackend,
                 "keyboardAvailable": root.keyboardAvailable,
                 "keyboardVisible": root.keyboardVisible,
                 "keyboardRunning": osk.running,
