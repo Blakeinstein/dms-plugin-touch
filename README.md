@@ -4,6 +4,12 @@
 
 On-screen keyboard, tablet mode, auto-rotation and Hyprland touch gestures.
 
+## Screenshots
+
+| On-screen keyboard | Quick settings |
+| --- | --- |
+| ![On-screen keyboard](screenshots/keyboard.png) | ![Quick settings](screenshots/quick-settings.png) |
+
 ## Features
 
 ### On-screen keyboard
