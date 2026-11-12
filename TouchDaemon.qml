@@ -43,6 +43,11 @@ PluginComponent {
     readonly property bool showHideButton: pluginData.showHideButton ?? true
     // "", "udev" or "libinput"; libinput needs read access to /dev/input (the input group)
     property string inputTier: ""
+    property bool udevadmAvailable: false
+    // libinput debug-events watches every input device and costs CPU accordingly, so it needs explicit consent
+    readonly property bool libinputWatcherEnabled: pluginData.libinputWatcherEnabled ?? false
+    // What the resident watcher actually is right now ("", "udev" or "libinput"), independent of inputTier's raw capability
+    property string activeWatcherMode: ""
     property var externalKeyboardNodes: []
     readonly property int externalKeyboardCount: externalKeyboardNodes.length
     readonly property bool inputWatchWanted: autoTabletMode || hideOnKeyPress || followTabletSwitch
@@ -115,6 +120,7 @@ PluginComponent {
     onTouchLuaChanged: Qt.callLater(writeTouchLua)
     onRotationActiveChanged: rotationActive ? startRotation() : stopRotation()
     onInputWatchWantedChanged: syncInputWatcher()
+    onLibinputWatcherEnabledChanged: syncInputWatcher()
     onRotationOutputChanged: applyRotation()
 
     function toggle() {
@@ -219,7 +225,7 @@ PluginComponent {
     }
 
     function handleInputLine(line) {
-        if (inputTier === "udev") {
+        if (activeWatcherMode === "udev") {
             if (/\b(add|remove)\b/.test(line))
                 scanInputs();
             return;
@@ -243,23 +249,37 @@ PluginComponent {
     }
 
     function detectInputTier() {
-        const script = 'command -v libinput >/dev/null 2>&1 && for e in /dev/input/event*; do [ -r "$e" ] && { echo libinput; exit 0; }; done; command -v udevadm >/dev/null 2>&1 && echo udev';
+        // One shot, so inputTier and udevadmAvailable land together: syncInputWatcher must see both
+        // at once, or it could briefly start the heavy libinput watcher before learning udevadm exists.
+        const script = 'tier=""; command -v libinput >/dev/null 2>&1 && for e in /dev/input/event*; do [ -r "$e" ] && { tier=libinput; break; }; done; [ -z "$tier" ] && command -v udevadm >/dev/null 2>&1 && tier=udev; udevadm_ok=0; command -v udevadm >/dev/null 2>&1 && udevadm_ok=1; printf "%s\\n%s\\n" "$tier" "$udevadm_ok"';
         Proc.runCommand("duxtouch-input-tier", ["sh", "-c", script], output => {
-            inputTier = output.trim();
+            const lines = output.split("\n");
+            inputTier = (lines[0] ?? "").trim();
+            udevadmAvailable = lines[1]?.trim() === "1";
             syncInputWatcher();
         });
     }
 
+    // libinput debug-events opens every input device and costs CPU proportional to all input (pointer
+    // and touch motion included), so it only runs with explicit consent. Otherwise, hotplug detection
+    // alone falls back to the much cheaper udevadm monitor, which can't see key presses or the tablet
+    // switch (see handleInputLine). libinput still runs unopted-in as a last resort, when udevadm itself
+    // is missing, since hotplug detection would otherwise be unavailable entirely.
     function syncInputWatcher() {
         const wanted = inputWatchWanted && inputTier !== "";
         if (!wanted) {
             stopInputWatcher();
             return;
         }
-        if (inputWatcher.running)
-            return;
+        const mode = inputTier === "libinput" && (libinputWatcherEnabled || !udevadmAvailable) ? "libinput" : "udev";
+        if (inputWatcher.running) {
+            if (activeWatcherMode === mode)
+                return;
+            stopInputWatcher();
+        }
+        activeWatcherMode = mode;
         scanInputs();
-        if (inputTier === "libinput")
+        if (mode === "libinput")
             inputWatcher.command = ["sh", "-c", "libinput debug-events 2>/dev/null | grep --line-buffered -E 'DEVICE_(ADDED|REMOVED)|KEYBOARD_KEY|SWITCH_TOGGLE'"];
         else
             inputWatcher.command = ["udevadm", "monitor", "--udev", "--subsystem-match=input"];
@@ -504,6 +524,8 @@ PluginComponent {
                 "physicalKeyboard": root.physicalKeyboard,
                 "tabletModeManaged": root.pluginService?.loadPluginState(root.pluginId, "tabletModeManaged", false) ?? false,
                 "inputTier": root.inputTier,
+                "libinputWatcherEnabled": root.libinputWatcherEnabled,
+                "activeWatcherMode": root.activeWatcherMode,
                 "inputWatcherRunning": inputWatcher.running,
                 "externalKeyboards": root.externalKeyboardNodes,
                 "rotationActive": root.rotationActive,

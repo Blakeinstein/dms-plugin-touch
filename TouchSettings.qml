@@ -304,10 +304,18 @@ PluginSettings {
     StyledText {
         width: parent.width
         wrapMode: Text.WordWrap
+        visible: (root.touchInstance?.inputTier ?? "") !== "libinput"
         font.pixelSize: Theme.fontSizeSmall
-        readonly property string tier: root.pluginService?.pluginDaemonInstances?.[root.pluginId]?.inputTier ?? ""
-        color: tier === "libinput" ? Theme.surfaceVariantText : Theme.warning
-        text: tier === "libinput" ? I18n.trFor("duxTouch", "Input access is available: key presses and the tablet switch are followed.") : I18n.trFor("duxTouch", "Only keyboard attach and detach are followed. For key presses and the tablet switch, add yourself to the input group and install libinput-tools.")
+        color: Theme.warning
+        text: I18n.trFor("duxTouch", "Only keyboard attach and detach are followed. For key presses and the tablet switch, add yourself to the input group and install libinput-tools.")
+    }
+
+    ToggleSetting {
+        visible: (root.touchInstance?.inputTier ?? "") === "libinput"
+        settingKey: "libinputWatcherEnabled"
+        label: I18n.trFor("duxTouch", "Follow key presses and the tablet switch")
+        description: I18n.trFor("duxTouch", "Keeps a libinput watcher resident. It can read every input device, including keystrokes typed into other apps and the lock screen, so it is off by default.")
+        defaultValue: false
     }
 
     ToggleSetting {

@@ -22,12 +22,12 @@ On-screen keyboard (wvkbd or the Virtual Keyboard plugin), tablet mode, auto-rot
 - Keeps the keyboard running in the background, so it opens instantly.
 - **Show on text focus:** the keyboard opens by itself when a text field is focused.
 - **Automatic tablet mode:** detaching the last external keyboard turns tablet mode on, and attaching one turns it off. Tablet mode you turned on yourself is never switched off.
-- Follows the hardware tablet-mode switch on convertibles (needs the `input` group).
+- Follows the hardware tablet-mode switch on convertibles (needs the `input` group and the "Follow key presses and the tablet switch" setting).
 
 ### Physical keyboards
 - Detects USB and Bluetooth keyboards. Built-in laptop keyboards never count as external.
 - Attaching a keyboard hides the on-screen keyboard.
-- Typing on an external keyboard hides it (needs the `input` group).
+- Typing on an external keyboard hides it (needs the `input` group and the "Follow key presses and the tablet switch" setting).
 - One toggle turns all of this off.
 
 ### Auto-rotation
@@ -55,7 +55,7 @@ On-screen keyboard (wvkbd or the Virtual Keyboard plugin), tablet mode, auto-rot
 - **IPC** for scripts and keybinds (see [IPC](#ipc)).
 
 ### Idle cost
-No polling and no timers. Nothing runs while idle except one sleeping watcher (`udevadm` or `libinput`), and only while physical keyboard detection or the tablet-mode switch option is on. The accelerometer is held only while auto-rotate is on and unlocked.
+No polling and no timers. Nothing runs while idle except one sleeping watcher, and only while physical keyboard detection or the tablet-mode switch option is on. It's `udevadm` (hotplug only, cheap) unless you turn on "Follow key presses and the tablet switch", which switches it to `libinput debug-events`: that one reads every input device, so it costs CPU proportional to all input and is off by default. The accelerometer is held only while auto-rotate is on and unlocked.
 
 ## Requirements
 
@@ -65,7 +65,7 @@ No polling and no timers. Nothing runs while idle except one sleeping watcher (`
 | On-screen keyboard (Virtual Keyboard plugin backend) | any | `ydotool` | enable the [Virtual Keyboard](https://github.com/sitolam/dux-plugins/tree/main/plugins/virtualkeyboard) plugin |
 | Show on text focus | any with input-method-v2 | `wvkbd` | none, wvkbd backend only |
 | Keyboard attach and detach | any | `systemd` (`udevadm`) | none |
-| Hide on key press, tablet-mode switch | any | `libinput-tools` | `input` group |
+| Hide on key press, tablet-mode switch | any | `libinput-tools` | `input` group, and turn on "Follow key presses and the tablet switch" |
 | Auto-rotation | any with wlr-output-management | `iio-sensor-proxy` | an accelerometer |
 | Touch gestures | Hyprland with Lua config (other compositors planned) | [hyprgrass](https://github.com/horriblename/hyprgrass), built by `hyprpm` (`cmake`, `meson`, `ninja`, `cpio`, `git`, `gcc`, `glm`) | load `dms.touch` |
 
@@ -84,7 +84,7 @@ Hide on key press and the tablet-mode switch read input devices directly, which 
 sudo usermod -aG input $USER   # then log out and back in
 ```
 
-Check it with `dms ipc call duxTouch status`. `"inputTier"` is `"libinput"` with access and `"udev"` without. Members of the `input` group can read every input device, including keystrokes typed into other apps and the lock screen.
+Check access with `dms ipc call duxTouch status`. `"inputTier"` is `"libinput"` with access and `"udev"` without. Members of the `input` group can read every input device, including keystrokes typed into other apps and the lock screen, so the plugin also needs "Follow key presses and the tablet switch" (off by default) turned on in settings before it actually watches anything; `"activeWatcherMode"` in `status` confirms which watcher, if any, is currently running.
 
 ### Hyprland
 

@@ -13,6 +13,6 @@
     },
     "settings": "./TouchSettings.qml",
     "requires_dms": ">=2.2.0",
-    "dependencies": ["wvkbd"],
+    "dependencies": ["wvkbd", "libinput-tools", "iio-sensor-proxy", "hyprgrass"],
     "permissions": ["settings_read", "settings_write", "process"]
 }

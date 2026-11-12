@@ -12,7 +12,7 @@ Column {
     readonly property var opts: host.pluginData
     readonly property Item daemon: host.daemon
     readonly property bool keyboardVisible: daemon?.keyboardVisible ?? false
-    readonly property bool hasInputAccess: (daemon?.inputTier ?? "") === "libinput"
+    readonly property bool hasInputAccess: (daemon?.inputTier ?? "") === "libinput" && (daemon?.libinputWatcherEnabled ?? false)
 
     function setOption(key, value) {
         daemon?.setOption(key, value);
