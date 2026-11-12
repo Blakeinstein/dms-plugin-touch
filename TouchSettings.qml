@@ -319,10 +319,10 @@ PluginSettings {
     }
 
     ToggleSetting {
-        visible: root.keyboardBackend === "wvkbd"
+        visible: root.keyboardBackend === "wvkbd" && root.hyprland
         settingKey: "keyboardAuto"
         label: I18n.trFor("duxTouch", "Show on text focus")
-        description: I18n.trFor("duxTouch", "In tablet mode, open the keyboard when a text field is focused")
+        description: I18n.trFor("duxTouch", "In tablet mode, open the keyboard when a text field is focused. Hyprland only: elsewhere there's no way to track wvkbd's own --auto visibility, so it stays off.")
         defaultValue: true
     }
 

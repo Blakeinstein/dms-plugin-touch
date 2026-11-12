@@ -59,7 +59,9 @@ PluginComponent {
             "height": pluginData.keyboardHeight ?? 250,
             "landscapeHeight": pluginData.keyboardLandscapeHeight ?? 200,
             "layers": pluginData.keyboardLayers || "",
-            "auto": tabletMode && !(physicalKeyboard && externalKeyboardCount > 0) && (pluginData.keyboardAuto ?? true),
+            // wvkbd's own --auto visibility is only tracked through Hyprland's layer-shell events (see the
+            // Hyprland Connections below), so elsewhere it would desync keyboardVisible from what's on screen
+            "auto": CompositorService.isHyprland && tabletMode && !(physicalKeyboard && externalKeyboardCount > 0) && (pluginData.keyboardAuto ?? true),
             "radius": Theme.cornerRadius,
             "font": Theme.fontFamily,
             "fontSize": Theme.fontSizeLarge,
@@ -261,17 +263,20 @@ PluginComponent {
     }
 
     // libinput debug-events opens every input device and costs CPU proportional to all input (pointer
-    // and touch motion included), so it only runs with explicit consent. Otherwise, hotplug detection
-    // alone falls back to the much cheaper udevadm monitor, which can't see key presses or the tablet
-    // switch (see handleInputLine). libinput still runs unopted-in as a last resort, when udevadm itself
-    // is missing, since hotplug detection would otherwise be unavailable entirely.
+    // and touch motion included), so it never starts without explicit consent (libinputWatcherEnabled),
+    // full stop. Hotplug detection alone falls back to the much cheaper udevadm monitor, which can't see
+    // key presses or the tablet switch (see handleInputLine); without either, nothing watches at all.
     function syncInputWatcher() {
         const wanted = inputWatchWanted && inputTier !== "";
         if (!wanted) {
             stopInputWatcher();
             return;
         }
-        const mode = inputTier === "libinput" && (libinputWatcherEnabled || !udevadmAvailable) ? "libinput" : "udev";
+        const mode = inputTier === "libinput" && libinputWatcherEnabled ? "libinput" : (udevadmAvailable ? "udev" : "");
+        if (!mode) {
+            stopInputWatcher();
+            return;
+        }
         if (inputWatcher.running) {
             if (activeWatcherMode === mode)
                 return;

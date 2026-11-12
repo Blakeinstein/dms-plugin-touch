@@ -3,7 +3,7 @@
     "name": "Touch",
     "description": "On-screen keyboard (wvkbd or the Virtual Keyboard plugin), tablet mode, auto-rotation and touch gestures (hyprgrass, Hyprland only for now)",
     "version": "0.1.0",
-    "author": "Dux Modular Shell",
+    "author": "Blakeinstein",
     "type": "composite",
     "capabilities": ["daemon", "dankbar-widget", "control-center", "touch"],
     "icon": "touch_app",
@@ -13,6 +13,6 @@
     },
     "settings": "./TouchSettings.qml",
     "requires_dms": ">=2.2.0",
-    "dependencies": ["wvkbd", "libinput-tools", "iio-sensor-proxy", "hyprgrass"],
+    "dependencies": ["wvkbd", "libinput-tools", "iio-sensor-proxy", "hyprgrass", "systemd"],
     "permissions": ["settings_read", "settings_write", "process"]
 }
