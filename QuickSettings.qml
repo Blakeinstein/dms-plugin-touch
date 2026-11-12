@@ -56,8 +56,9 @@ Column {
 
     DToggle {
         width: parent.width
+        visible: (quick.opts.keyboardBackend || "wvkbd") === "wvkbd" && (CompositorService.isHyprland || CompositorService.isNiri)
         text: I18n.trFor("duxTouch", "Show on text focus")
-        checked: quick.opts.keyboardAuto ?? true
+        checked: quick.opts.keyboardAuto ?? CompositorService.isHyprland
         onToggled: checked => quick.setOption("keyboardAuto", checked)
     }
 

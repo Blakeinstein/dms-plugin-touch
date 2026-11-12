@@ -59,10 +59,11 @@ PluginComponent {
             "height": pluginData.keyboardHeight ?? 250,
             "landscapeHeight": pluginData.keyboardLandscapeHeight ?? 200,
             "layers": pluginData.keyboardLayers || "",
-            // wvkbd's own --auto visibility is only tracked on Hyprland (layer-shell raw events, instant) and
-            // niri (polling "niri msg -j layers", see niriLayerPoll below); elsewhere it would desync
-            // keyboardVisible from what's on screen, so --auto stays off there
-            "auto": (CompositorService.isHyprland || CompositorService.isNiri) && tabletMode && !(physicalKeyboard && externalKeyboardCount > 0) && (pluginData.keyboardAuto ?? true),
+            // wvkbd's own --auto visibility is tracked for free on Hyprland (layer-shell raw events), so it
+            // defaults on there. niri has no such event, only a request/response query (see pollNiriLayers),
+            // so tracking it means a resident poll for as long as tablet mode keeps wvkbd running; it defaults
+            // off there and needs an explicit opt-in. Elsewhere there's no way to track it at all, so it's off.
+            "auto": (CompositorService.isHyprland || CompositorService.isNiri) && tabletMode && !(physicalKeyboard && externalKeyboardCount > 0) && (pluginData.keyboardAuto ?? CompositorService.isHyprland),
             "radius": Theme.cornerRadius,
             "font": Theme.fontFamily,
             "fontSize": Theme.fontSizeLarge,
@@ -470,9 +471,12 @@ PluginComponent {
     }
 
     // niri has no equivalent push event, so --auto visibility there is tracked by polling instead (see
-    // pollNiriLayers); only runs while wvkbd could plausibly be showing/hiding itself unprompted
+    // pollNiriLayers). keyboardOptions.auto defaults off on niri specifically because of this: in tablet
+    // mode wvkbd stays resident, so an opted-in user accepts this running for as long as tablet mode is on.
+    // The interval is coarse on purpose to keep that cost low while it does run.
     Timer {
-        interval: 250
+        id: niriLayerPoll
+        interval: 2000
         repeat: true
         triggeredOnStart: true
         running: CompositorService.isNiri && root.keyboardBackend === "wvkbd" && root.keyboardOptions.auto && osk.running

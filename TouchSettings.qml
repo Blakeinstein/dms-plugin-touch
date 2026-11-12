@@ -323,8 +323,8 @@ PluginSettings {
         visible: root.keyboardBackend === "wvkbd" && (root.hyprland || root.isNiri)
         settingKey: "keyboardAuto"
         label: I18n.trFor("duxTouch", "Show on text focus")
-        description: I18n.trFor("duxTouch", "In tablet mode, open the keyboard when a text field is focused. Hyprland or niri only: elsewhere there's no way to track wvkbd's own --auto visibility, so it stays off.")
-        defaultValue: true
+        description: root.isNiri ? I18n.trFor("duxTouch", "In tablet mode, open the keyboard when a text field is focused. On niri this needs a poll every 2s for as long as tablet mode is on (no push event exists there), so it's off by default. Hyprland tracks it for free and defaults on.") : I18n.trFor("duxTouch", "In tablet mode, open the keyboard when a text field is focused. Elsewhere there's no way to track wvkbd's own --auto visibility, so it stays off.")
+        defaultValue: root.hyprland
     }
 
     StyledText {

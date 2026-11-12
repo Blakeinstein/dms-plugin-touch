@@ -55,7 +55,7 @@ On-screen keyboard (wvkbd or the Virtual Keyboard plugin), tablet mode, auto-rot
 - **IPC** for scripts and keybinds (see [IPC](#ipc)).
 
 ### Idle cost
-No polling and no timers. Nothing runs while idle except one sleeping watcher, and only while physical keyboard detection or the tablet-mode switch option is on. It's `udevadm` (hotplug only, cheap) unless you turn on "Follow key presses and the tablet switch", which switches it to `libinput debug-events`: that one reads every input device, so it costs CPU proportional to all input and is off by default. The accelerometer is held only while auto-rotate is on and unlocked.
+Nothing runs while idle except one sleeping watcher, and only while physical keyboard detection or the tablet-mode switch option is on. It's `udevadm` (hotplug only, cheap) unless you turn on "Follow key presses and the tablet switch", which switches it to `libinput debug-events`: that one reads every input device, so it costs CPU proportional to all input and is off by default. The accelerometer is held only while auto-rotate is on and unlocked. The one genuine poll in the plugin is "Show on text focus" on niri (every 2s, for as long as tablet mode is on): it's off by default for exactly this reason, see [Other compositors](#other-compositors).
 
 ## Requirements
 
@@ -63,7 +63,7 @@ No polling and no timers. Nothing runs while idle except one sleeping watcher, a
 | --- | --- | --- | --- |
 | On-screen keyboard, tablet mode, hide button (wvkbd backend) | any with layer-shell and virtual-keyboard | `wvkbd` | none |
 | On-screen keyboard (Virtual Keyboard plugin backend) | any | `ydotool` | enable the [Virtual Keyboard](https://github.com/sitolam/dux-plugins/tree/main/plugins/virtualkeyboard) plugin |
-| Show on text focus | Hyprland or niri (needs input-method-v2) | `wvkbd` | none, wvkbd backend only |
+| Show on text focus | Hyprland or niri (needs input-method-v2) | `wvkbd` | wvkbd backend only; on niri, also turn the setting on (off by default, see [Idle cost](#idle-cost)) |
 | Keyboard attach and detach | any | `systemd` (`udevadm`) | none |
 | Hide on key press, tablet-mode switch | any | `libinput-tools` | `input` group, and turn on "Follow key presses and the tablet switch" |
 | Auto-rotation | any with wlr-output-management | `iio-sensor-proxy` | an accelerometer |
@@ -100,7 +100,7 @@ On niri, set `map-to-output` in the `touch` input block so touches follow a rota
 
 Two things are further limited, since both need a way to notice wvkbd's own `--auto` visibility changes, and no generic Wayland protocol exposes another client's layer-shell surface state:
 - **Touch gestures** (hyprgrass): Hyprland only, since it's a Hyprland plugin.
-- **Show on text focus:** Hyprland tracks it instantly through layer-shell raw events; niri has no equivalent push event, so it's instead polled every 250ms through `niri msg -j layers`, which is a little slower to notice. Disabled on anything else.
+- **Show on text focus:** Hyprland tracks it for free through layer-shell raw events, so it defaults on there. niri has no equivalent push event, only a `niri msg -j layers` request/response query, so tracking it there means polling every 2s for as long as tablet mode keeps wvkbd resident — it defaults **off** on niri, and needs an explicit opt-in in settings. Disabled on anything else.
 
 ## Install
 
