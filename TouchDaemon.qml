@@ -59,9 +59,10 @@ PluginComponent {
             "height": pluginData.keyboardHeight ?? 250,
             "landscapeHeight": pluginData.keyboardLandscapeHeight ?? 200,
             "layers": pluginData.keyboardLayers || "",
-            // wvkbd's own --auto visibility is only tracked through Hyprland's layer-shell events (see the
-            // Hyprland Connections below), so elsewhere it would desync keyboardVisible from what's on screen
-            "auto": CompositorService.isHyprland && tabletMode && !(physicalKeyboard && externalKeyboardCount > 0) && (pluginData.keyboardAuto ?? true),
+            // wvkbd's own --auto visibility is only tracked on Hyprland (layer-shell raw events, instant) and
+            // niri (polling "niri msg -j layers", see niriLayerPoll below); elsewhere it would desync
+            // keyboardVisible from what's on screen, so --auto stays off there
+            "auto": (CompositorService.isHyprland || CompositorService.isNiri) && tabletMode && !(physicalKeyboard && externalKeyboardCount > 0) && (pluginData.keyboardAuto ?? true),
             "radius": Theme.cornerRadius,
             "font": Theme.fontFamily,
             "fontSize": Theme.fontSizeLarge,
@@ -329,6 +330,26 @@ PluginComponent {
         osk.running = true;
     }
 
+    // niri has no push event for layer-shell surfaces, only a request/response query (see niriLayerPoll),
+    // so wvkbd's self-initiated --auto visibility can only be noticed by polling and diffing this list
+    function pollNiriLayers() {
+        Proc.runCommand("duxtouch-niri-layers", ["niri", "msg", "-j", "layers"], (output, exitCode) => {
+            if (exitCode !== 0)
+                return;
+            let layers;
+            try {
+                layers = JSON.parse(output);
+            } catch (e) {
+                return;
+            }
+            if (!Array.isArray(layers))
+                return;
+            const visible = layers.some(l => l.namespace === "wvkbd");
+            if (visible !== root.keyboardVisible)
+                root.keyboardVisible = visible;
+        });
+    }
+
     function writeTouchLua() {
         if (!touchLua)
             return;
@@ -446,6 +467,16 @@ PluginComponent {
             else if (event.name === "closelayer")
                 root.keyboardVisible = false;
         }
+    }
+
+    // niri has no equivalent push event, so --auto visibility there is tracked by polling instead (see
+    // pollNiriLayers); only runs while wvkbd could plausibly be showing/hiding itself unprompted
+    Timer {
+        interval: 250
+        repeat: true
+        triggeredOnStart: true
+        running: CompositorService.isNiri && root.keyboardBackend === "wvkbd" && root.keyboardOptions.auto && osk.running
+        onTriggered: root.pollNiriLayers()
     }
 
     // The Virtual Keyboard plugin brings its own hide affordance (DankBar pill), so the floating hide button is wvkbd-only

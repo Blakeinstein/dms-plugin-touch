@@ -11,6 +11,7 @@ PluginSettings {
     pluginId: "duxTouch"
 
     readonly property bool hyprland: CompositorService.isHyprland
+    readonly property bool isNiri: CompositorService.isNiri
     readonly property string hyprDir: HyprlandService.configDir + "/hypr"
     property bool hyprgrassLoaded: false
 
@@ -319,10 +320,10 @@ PluginSettings {
     }
 
     ToggleSetting {
-        visible: root.keyboardBackend === "wvkbd" && root.hyprland
+        visible: root.keyboardBackend === "wvkbd" && (root.hyprland || root.isNiri)
         settingKey: "keyboardAuto"
         label: I18n.trFor("duxTouch", "Show on text focus")
-        description: I18n.trFor("duxTouch", "In tablet mode, open the keyboard when a text field is focused. Hyprland only: elsewhere there's no way to track wvkbd's own --auto visibility, so it stays off.")
+        description: I18n.trFor("duxTouch", "In tablet mode, open the keyboard when a text field is focused. Hyprland or niri only: elsewhere there's no way to track wvkbd's own --auto visibility, so it stays off.")
         defaultValue: true
     }
 

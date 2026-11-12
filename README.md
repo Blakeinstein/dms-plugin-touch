@@ -2,7 +2,7 @@
 
 ![Touch](preview.jpg)
 
-On-screen keyboard (wvkbd or the Virtual Keyboard plugin), tablet mode, auto-rotation and touch gestures. Works on any compositor with layer-shell and wlr-output-management; touch gestures need Hyprland for now.
+On-screen keyboard (wvkbd or the Virtual Keyboard plugin), tablet mode, auto-rotation and touch gestures. Tested on Hyprland and niri; other wlroots compositors may partially work but aren't recommended (see [Other compositors](#other-compositors)).
 
 ## Screenshots
 
@@ -20,7 +20,7 @@ On-screen keyboard (wvkbd or the Virtual Keyboard plugin), tablet mode, auto-rot
 
 ### Tablet mode
 - Keeps the keyboard running in the background, so it opens instantly.
-- **Show on text focus:** the keyboard opens by itself when a text field is focused (Hyprland only).
+- **Show on text focus:** the keyboard opens by itself when a text field is focused (Hyprland or niri).
 - **Automatic tablet mode:** detaching the last external keyboard turns tablet mode on, and attaching one turns it off. Tablet mode you turned on yourself is never switched off.
 - Follows the hardware tablet-mode switch on convertibles (needs the `input` group and the "Follow key presses and the tablet switch" setting).
 
@@ -63,7 +63,7 @@ No polling and no timers. Nothing runs while idle except one sleeping watcher, a
 | --- | --- | --- | --- |
 | On-screen keyboard, tablet mode, hide button (wvkbd backend) | any with layer-shell and virtual-keyboard | `wvkbd` | none |
 | On-screen keyboard (Virtual Keyboard plugin backend) | any | `ydotool` | enable the [Virtual Keyboard](https://github.com/sitolam/dux-plugins/tree/main/plugins/virtualkeyboard) plugin |
-| Show on text focus | Hyprland (needs input-method-v2) | `wvkbd` | none, wvkbd backend only |
+| Show on text focus | Hyprland or niri (needs input-method-v2) | `wvkbd` | none, wvkbd backend only |
 | Keyboard attach and detach | any | `systemd` (`udevadm`) | none |
 | Hide on key press, tablet-mode switch | any | `libinput-tools` | `input` group, and turn on "Follow key presses and the tablet switch" |
 | Auto-rotation | any with wlr-output-management | `iio-sensor-proxy` | an accelerometer |
@@ -94,7 +94,13 @@ Check access with `dms ipc call duxTouch status`. `"inputTier"` is `"libinput"` 
 
 ### Other compositors
 
-The on-screen keyboard, tablet mode and auto-rotation work on any compositor with layer-shell and wlr-output-management. On niri, set `map-to-output` in the `touch` input block so touches follow a rotated panel. Two things stay Hyprland-only for now, and may be added for other compositors later: touch gestures (hyprgrass), and "Show on text focus" (there's no generic way to track wvkbd's own `--auto` visibility outside Hyprland's layer-shell events, so it's disabled elsewhere rather than risk the keyboard state going out of sync).
+Hyprland and niri are the two compositors this plugin is tested on and supports. The on-screen keyboard, tablet mode and auto-rotation themselves don't depend on the compositor and may happen to work on other wlroots compositors with layer-shell and wlr-output-management, but that's untested and not recommended — stick to Hyprland or niri.
+
+On niri, set `map-to-output` in the `touch` input block so touches follow a rotated panel.
+
+Two things are further limited, since both need a way to notice wvkbd's own `--auto` visibility changes, and no generic Wayland protocol exposes another client's layer-shell surface state:
+- **Touch gestures** (hyprgrass): Hyprland only, since it's a Hyprland plugin.
+- **Show on text focus:** Hyprland tracks it instantly through layer-shell raw events; niri has no equivalent push event, so it's instead polled every 250ms through `niri msg -j layers`, which is a little slower to notice. Disabled on anything else.
 
 ## Install
 
